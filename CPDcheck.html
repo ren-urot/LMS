@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CPDcheck</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['Geist', 'system-ui', 'sans-serif'] } } }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html { overflow-y: scroll; }
+    body { margin: 0; font-family: 'Geist', system-ui, sans-serif; background: #f0f2f5; color: #111827; -webkit-font-smoothing: antialiased; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d0d4da; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #b0b8c4; }
+    button { font-family: inherit; }
+    input { font-family: inherit; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // ─── Utils ────────────────────────────────────────────────────────────────
+    function cn(...classes) { return classes.filter(Boolean).join(' '); }
+
+    // ─── Theme ────────────────────────────────────────────────────────────────
+    const T = {
+      bg:        "#f0f2f5",
+      card:      "#ffffff",
+      cardAlt:   "#f8f9fb",
+      border:    "#e8eaed",
+      borderHov: "#d0d4da",
+      text:      "#111827",
+      muted:     "#6b7280",
+      accent:    "#ef4444",
+      accentHov: "#dc2626",
+      accentBg:  "rgba(239,68,68,0.08)",
+      green:     "#10b981",
+      greenBg:   "rgba(16,185,129,0.1)",
+      red:       "#ef4444",
+      redBg:     "rgba(239,68,68,0.1)",
+      orange:    "#f97316",
+      orangeBg:  "rgba(249,115,22,0.1)",
+    };
+
+    // ─── Data ─────────────────────────────────────────────────────────────────
+    const cpdCategories = [
+      { id: "technical",      label: "Technical Competence",                         shortLabel: "Technical Competence",  earned: 7.5, target: 5  },
+      { id: "professionalism",label: "Professionalism & Ethics",                     shortLabel: "Professionalism & Ethics", earned: 8, target: 9  },
+      { id: "clientCare",     label: "Client Care & Practice",                       shortLabel: "Client Care & Practice",   earned: 7, target: 5  },
+      { id: "regulatory",     label: "Regulatory Compliance & Consumer Protection",  shortLabel: "Regulatory Compliance",    earned: 0, target: 5  },
+      { id: "general",        label: "General",                                      shortLabel: "General",                  earned: 1, target: 0  },
+      { id: "tax",            label: "Tax (Financial) Advice",                       shortLabel: "Tax (Financial) Advice",   earned: 3, target: 5  },
+    ];
+
+    const ANNUAL_CPD_TARGET = 40;
+
+    const subCategories = [
+      { id: "super",             label: "Super",                     earned: null  },
+      { id: "derivatives",       label: "Derivatives",               earned: null  },
+      { id: "financial-plan",    label: "Financial planning",        earned: 0.25  },
+      { id: "aged-care",         label: "Aged care",                 earned: null  },
+      { id: "retirement-inc",    label: "Retirement income streams", earned: null  },
+      { id: "smsf",              label: "Self Managed Super Funds",  earned: null  },
+      { id: "retirement",        label: "Retirement",                earned: 0.25  },
+      { id: "skills",            label: "Skills",                    earned: null  },
+      { id: "securities",        label: "Securities",                earned: null  },
+      { id: "social-security",   label: "Social Security",           earned: null  },
+      { id: "compliance",        label: "Compliance",                earned: 0.50  },
+      { id: "retirement2",       label: "Retirement",                earned: 0.25  },
+      { id: "estate-planning",   label: "Estate planning",           earned: null  },
+      { id: "taxation",          label: "Taxation",                  earned: null  },
+      { id: "general-knowledge", label: "General knowledge",         earned: 0.25  },
+      { id: "resp-manager",      label: "Responsible Manager",       earned: null  },
+      { id: "life-insurance",    label: "Life Insurance",            earned: null  },
+      { id: "fixed-interest",    label: "Fixed Interest",            earned: null  },
+      { id: "margin-lending",    label: "Margin lending",            earned: null  },
+      { id: "practice-mgmt",     label: "Practice management",       earned: null  },
+    ];
+
+    const completedEducation = [
+      { id:"ce1", title:"On Demand - Dr Katherine Hunt (MoneyMind) - 1.0 CPD", subtitle:"Exploring client psychology and behaviour in financial advice.", description:"Exploring client psychology and behaviour in financial advice. Dr Katherine Hunt shares research-backed insights on how financial advisers can better understand client decision-making.", provider:"MoneyMind", type:"audio", duration:60, cpdPoints:1.0, completedDate:"28 August 2025", status:"completed", categories:[{name:"Client Care & Practice",pts:0.50},{name:"Professionalism & Ethics",pts:0.25},{name:"Technical Competence",pts:0.25}], isImported:false },
+      { id:"ce2", title:"Engine Room Audio Series 11 - Dr Paul Moran and Alex Hont", subtitle:"Best practice strategies for retirement income planning.", description:"Best practice strategies for retirement income planning. Dr Paul Moran and Alex Hont discuss the latest approaches to structuring retirement income for Australian clients.", provider:"Engine Room", type:"audio", duration:55, cpdPoints:1.0, completedDate:"14 August 2025", status:"completed", categories:[{name:"Technical Competence",pts:0.50},{name:"Client Care & Practice",pts:0.25},{name:"Regulatory Compliance",pts:0.25}], isImported:false },
+      { id:"ce3", title:"Imported CPD Demo", subtitle:"Externally completed CPD activity - imported by adviser.", description:"Externally completed CPD activity imported by the adviser. This record represents CPD completed outside of the platform.", provider:"External", type:"pdf", duration:60, cpdPoints:1.0, completedDate:"12 September 2025", status:"completed", categories:[{name:"Professionalism & Ethics",pts:0.50},{name:"Client Care & Practice",pts:0.50}], isImported:true },
+      { id:"ce4", title:"Investment Podcast 33 - Behavioural Investing", subtitle:"How behavioural biases impact client investment decisions.", description:"As markets test investor nerves and emotions drive decision-making, host Kieran Berry explores behavioural finance strategies for financial advisers.", provider:"Ensombl", type:"audio", duration:42, cpdPoints:1.0, completedDate:"3 July 2025", status:"completed", categories:[{name:"Client Care & Practice",pts:0.75},{name:"Professionalism & Ethics",pts:0.25}], isImported:false },
+      { id:"ce5", title:"AdviceTech Podcast 159 - YourLeadOut", subtitle:"Growing an advice business with technology.", description:"This week, Pat is joined by Rob Jones, Founder at Peloton Partners. They discuss how Peloton grew and the challenges they faced along the way.", provider:"AdviceTech Media", type:"audio", duration:36, cpdPoints:0.75, completedDate:"18 June 2025", status:"completed", categories:[{name:"Technical Competence",pts:0.25},{name:"Client Care & Practice",pts:0.25},{name:"Professionalism & Ethics",pts:0.25}], isImported:false },
+      { id:"ce6", title:"Best Interest Duty - Documentation Guide", subtitle:"Understanding and implementing best interest duty requirements.", description:"Understanding and implementing best interest duty requirements in client advice, including file note templates and compliance checklists.", provider:"Kaplan Professional", type:"pdf", duration:40, cpdPoints:0.75, completedDate:"10 May 2025", status:"completed", categories:[{name:"Professionalism & Ethics",pts:0.50},{name:"Client Care & Practice",pts:0.25}], isImported:false },
+    ];
+
+    const contentItems = [
+      { id:"1", photo:"https://picsum.photos/seed/podcast83/600/300", title:"Engine Room Podcast 83 - Ryan Watson", provider:"Engine Room", type:"podcast", duration:45, cpdPoints:1.0, categories:[{name:"Client Care & Practice",pts:0.5},{name:"Professionalism & Ethics",pts:0.5}], description:"In this episode, Rocksy speaks with Ryan Watson, CEO and founder of Tribeca Financial. They discuss his personal journey into advice and the building of Tribeca Financial, its client-centric philosophy, \"tribe\" culture, four-day workweek, diamond team structure, growth ambitions to 5,000 client families, and employee ownership model.", quizId:"1", status:"notStarted", completed:false, completedDate:null },
+      { id:"4", photo:"https://picsum.photos/seed/retirement/600/300", title:"Retirement Income Masterclass - Structuring Sustainable Withdrawals", provider:"Innova Asset Management", type:"url", duration:52, cpdPoints:1.25, categories:[{name:"Technical Competence",pts:0.75},{name:"Client Care & Practice",pts:0.5}], description:"In this masterclass, Senior Portfolio Strategist Dr. James Ellery walks through the latest frameworks for structuring sustainable retirement income. Topics include sequencing risk, account-based pension drawdown strategies, annuity blending, and practical tools for modelling client outcomes across varying market conditions.", quizId:"4", status:"notStarted", completed:false, completedDate:null },
+      { id:"5", photo:"https://picsum.photos/seed/compliance5/600/300", title:"Best Interest Duty - Documentation & Compliance Guide 2026", provider:"Kaplan Professional", type:"pdf", duration:40, cpdPoints:0.75, categories:[{name:"Professionalism & Ethics",pts:0.5},{name:"Regulatory Compliance & Consumer Protection",pts:0.25}], description:"This comprehensive guide covers the practical implementation of best interest duty obligations under the Corporations Act. It includes updated file note templates, a step-by-step SOA checklist, common compliance pitfalls identified in ASIC reviews, and guidance on documenting the advice process.", quizId:"5", status:"notStarted", completed:false, completedDate:null },
+      { id:"3", photo:"https://picsum.photos/seed/advicetech/600/300", title:"AdviceTech Podcast 164 - Regi Regi", provider:"Adviser Ratings", type:"podcast", duration:42, cpdPoints:1.0, categories:[{name:"General",pts:0.5},{name:"Client Care & Practice",pts:0.5}], description:"Regi Regi joins the AdviceTech Podcast to unpack how artificial intelligence is reshaping the financial advice workflow. From AI-assisted SOA drafting and meeting transcription tools to compliance-grade document review, Regi shares practical insights on which technologies are delivering real productivity gains.", quizId:"3", status:"notStarted", completed:false, completedDate:null },
+      { id:"2", photo:"https://picsum.photos/seed/insurance2/600/300", title:"Insurance Podcast 4 - Jake Reus", provider:"Engine Room", type:"podcast", duration:38, cpdPoints:1.0, categories:[{name:"Technical Competence",pts:0.5},{name:"Client Care & Practice",pts:0.5}], description:"In this episode, Rocksy is joined by Jake Reus, Senior Risk Adviser and founder of Reus Risk Advisory. They explore the evolving landscape of life insurance advice in Australia, including the impact of LIF reforms on adviser remuneration and the growing complexity of TPD and income protection products.", quizId:"2", status:"notStarted", completed:false, completedDate:null },
+      { id:"6", photo:"https://picsum.photos/seed/ethics6/600/300", title:"FASEA Code of Ethics - Applying the Standards in Complex Client Scenarios", provider:"FINSIA", type:"text", duration:35, cpdPoints:1.0, categories:[{name:"Professionalism & Ethics",pts:0.75},{name:"Client Care & Practice",pts:0.25}], description:"This article provides an in-depth analysis of Standards 1 through 12 of the FASEA Code of Ethics, illustrated through complex real-world client scenarios. Topics include managing conflicts of interest, applying the safe harbour provisions, and maintaining ethical conduct when client instructions conflict with professional obligations.", quizId:"6", status:"notStarted", completed:false, completedDate:null },
+    ];
+
+    const quizQuestions = {
+      "1": [
+        { id:"q1", question:"Under the current ethical framework, what is the primary obligation of a financial advisor?", options:["Maximise client returns at all costs","Act in the best interests of the client","Follow employer instructions without question","Minimise regulatory reporting obligations"], correct:1, explanation:"The best interests duty requires advisors to prioritise the client's interests above their own." },
+        { id:"q2", question:"Which of the following is NOT a core principle of the FASEA Code of Ethics?", options:["Trustworthy","Profitable","Competent","Respectful"], correct:1, explanation:"The FASEA Code of Ethics includes: Trustworthy, Competent, Honest, Fair, Diligent and Respectful. Profitability is not a code principle." },
+        { id:"q3", question:"A client asks you to recommend a product that pays higher commissions but is not in their best interest. What should you do?", options:["Recommend the product if the client insists","Decline and recommend the most appropriate product","Recommend the product but document the client's request","Refer the client to another advisor"], correct:1, explanation:"Advisors must always act in the client's best interests regardless of commission structures." },
+      ],
+      "2": [
+        { id:"q1", question:"What is the maximum number of members allowed in an SMSF?", options:["2","4","6","8"], correct:2, explanation:"As of 1 July 2021, the maximum number of SMSF members was increased from 4 to 6." },
+        { id:"q2", question:"SMSF trustees must ensure the fund operates for what sole purpose?", options:["Tax minimisation","Provision of retirement benefits","Wealth accumulation","Asset protection"], correct:1, explanation:"The sole purpose test requires that an SMSF is maintained for the sole purpose of providing retirement benefits to members." },
+      ],
+      "4": [
+        { id:"q1", question:"What is the most effective way to confirm client understanding during a meeting?", options:["Ask yes/no questions","Use open-ended questions and summarise responses","Send a follow-up email after the meeting","Provide a written statement of advice"], correct:1, explanation:"Open-ended questions encourage clients to express their understanding in their own words, which is the most reliable confirmation method." },
+      ],
+      "6": [
+        { id:"q1", question:"Which retirement income strategy involves drawing down principal over a set period?", options:["Account-based pension","Defined benefit pension","Life annuity","Transition to retirement income stream"], correct:0, explanation:"An account-based pension draws down accumulated superannuation balance (including principal) over the member's retirement." },
+        { id:"q2", question:"What is the minimum annual drawdown rate for an account-based pension for a person aged 65-74?", options:["2.5%","4%","5%","6%"], correct:2, explanation:"The standard minimum drawdown rate for ages 65-74 is 5% per annum (temporarily reduced rates may apply in some years)." },
+      ],
+    };
+
+    const categoryMap = {
+      clientCare: "Client Care & Practice",
+      general:    "General",
+      ethics:     "Professionalism & Ethics",
+      regulatory: "Regulatory Compliance & Consumer Protection",
+      tax:        "Tax (Financial) Advice",
+      technical:  "Technical Competence",
+    };
+
+    // ─── Icons ────────────────────────────────────────────────────────────────
+    const svgBase = (size, className, children) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
+    );
+    const IHeadphones = ({size=20,className}) => svgBase(size,className,<><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></>);
+    const IFileText  = ({size=20,className}) => svgBase(size,className,<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></>);
+    const IMonitor   = ({size=20,className}) => svgBase(size,className,<><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></>);
+    const IBookOpen  = ({size=20,className}) => svgBase(size,className,<><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></>);
+    const IClock     = ({size=20,className}) => svgBase(size,className,<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>);
+    const IChevronD  = ({size=20,className,style}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} style={style}><polyline points="6 9 12 15 18 9"/></svg>;
+    const IChevronL  = ({size=20,className}) => svgBase(size,className,<polyline points="15 18 9 12 15 6"/>);
+    const IPlay      = ({size=20}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth={1} strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>;
+    const ISkipBack  = ({size=20}) => svgBase(size,null,<><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></>);
+    const ISkipFwd   = ({size=20}) => svgBase(size,null,<><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></>);
+    const IVolume    = ({size=20}) => svgBase(size,null,<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></>);
+    const IArrowR    = ({size=20}) => svgBase(size,null,<><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></>);
+    const IEye       = ({size=20}) => svgBase(size,null,<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>);
+    const IEyeOff    = ({size=20}) => svgBase(size,null,<><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></>);
+    const ICheck     = ({size=20,className}) => svgBase(size,className,<polyline points="20 6 9 17 4 12"/>);
+    const IXmark     = ({size=20,className}) => svgBase(size,className,<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>);
+    const IAward     = ({size=20,className}) => svgBase(size,className,<><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></>);
+    const IDownload  = ({size=15}) => svgBase(size,null,<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>);
+    const ICloudUp   = ({size=18,className}) => svgBase(size,className,<><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></>);
+    const IBell      = ({size=20}) => svgBase(size,null,<><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></>);
+    const ISearch    = ({size=20}) => svgBase(size,null,<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>);
+    const ILogout    = ({size=20}) => svgBase(size,null,<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>);
+
+    // ─── Logo (white version for dark bg) ─────────────────────────────────────
+    const Logo = () => (
+      <svg width="102" height="17" viewBox="0 0 102 17" fill="none">
+        <path d="M43.8083 10.6984C43.8083 7.30791 46.3741 4.71921 49.8334 4.71921C52.0784 4.71921 54.0028 5.86465 54.8275 7.65154L53.8882 8.20135C53.2239 6.7581 51.6661 5.81883 49.8334 5.81883C47.0614 5.81883 44.9767 7.97226 44.9767 10.6984C44.9767 13.4246 47.0614 15.578 49.8334 15.578C51.689 15.578 53.201 14.6158 53.957 13.1955L54.9191 13.7682C54.0028 15.5322 52.0784 16.6776 49.8334 16.6776C46.3741 16.6776 43.8083 14.0889 43.8083 10.6984Z" fill="#1B2844"/>
+        <path d="M66.2132 9.30073V16.4254H65.0449V9.30073C65.0449 7.19312 63.8307 5.81859 61.6773 5.81859C59.5238 5.81859 57.6682 7.28475 57.6682 10.3774V16.4254H56.5228V0.389191H57.6682V7.1473C58.5387 5.45204 60.0049 4.71896 61.7689 4.71896C64.495 4.71896 66.2132 6.52876 66.2132 9.30073Z" fill="#1B2844"/>
+        <path d="M79.34 10.7442C79.34 10.9275 79.3171 11.1108 79.3171 11.294H68.9394C69.2143 13.8827 71.1845 15.578 73.7961 15.578C75.6746 15.578 77.095 14.7075 77.7593 13.4933L78.7673 14.0889C77.8281 15.6467 76.0412 16.6776 73.7732 16.6776C70.2452 16.6776 67.7482 14.1576 67.7482 10.6984C67.7482 7.23918 70.1765 4.71921 73.6816 4.71921C77.1866 4.71921 79.34 7.60572 79.34 10.7442ZM68.9394 10.1715H78.1488C77.8968 7.37663 75.9266 5.81883 73.6816 5.81883C71.0699 5.81883 69.1685 7.62863 68.9394 10.1715Z" fill="#1B2844"/>
+        <path d="M80.3251 10.6984C80.3251 7.30791 82.8909 4.71921 86.3501 4.71921C88.5952 4.71921 90.5195 5.86465 91.3442 7.65154L90.405 8.20135C89.7406 6.7581 88.1828 5.81883 86.3501 5.81883C83.5781 5.81883 81.4934 7.97226 81.4934 10.6984C81.4934 13.4246 83.5781 15.578 86.3501 15.578C88.2057 15.578 89.7177 14.6158 90.4737 13.1955L91.4359 13.7682C90.5195 15.5322 88.5952 16.6776 86.3501 16.6776C82.8909 16.6776 80.3251 14.0889 80.3251 10.6984Z" fill="#1B2844"/>
+        <path d="M100.256 16.4254L94.1847 10.7898V16.4254H93.0393V0.389191H94.1847V10.1713L99.9807 4.97096H101.584L95.4218 10.4691L101.813 16.4254H100.256Z" fill="#1B2844"/>
+        <path d="M0 8.33888C0 3.61966 3.50505 0 8.33882 0C11.2482 0 13.814 1.44332 15.2115 3.71129L12.05 5.544C11.3399 4.30692 9.96534 3.57384 8.33882 3.57384C5.49812 3.57384 3.66541 5.47527 3.66541 8.33888C3.66541 11.2025 5.49812 13.1039 8.33882 13.1039C9.96534 13.1039 11.3628 12.3708 12.05 11.1338L15.2115 12.9665C13.8369 15.2344 11.2711 16.6777 8.33882 16.6777C3.50505 16.6777 0 13.0581 0 8.33888Z" fill="#1B2844"/>
+        <path d="M27.7001 5.81904C27.7001 8.86592 25.2489 11.3172 22.0874 11.3172H19.682V16.3571H16.0166V0.320923H22.0874C25.2489 0.320923 27.7001 2.77217 27.7001 5.81904ZM24.0314 5.81904C24.0314 4.65069 23.2067 3.75725 22.0842 3.75725H19.6787V7.88084H22.0842C23.2067 7.88084 24.0314 6.98739 24.0314 5.81904Z" fill="#1B2844"/>
+        <path d="M42.8199 8.33902C42.8199 12.875 39.4523 16.3571 35.0309 16.3571H28.6164V0.320923H35.0309C39.4523 0.320923 42.8199 3.80307 42.8199 8.33902ZM39.2886 8.33902C39.2886 5.58996 37.5476 3.84888 35.0276 3.84888H32.2785V12.8291H35.0276C37.5476 12.8291 39.2886 11.0881 39.2886 8.33902Z" fill="#1B2844"/>
+      </svg>
+    );
+
+    // ─── Type config ──────────────────────────────────────────────────────────
+    const typeConfig = {
+      audio:   { bg:"rgba(249,115,22,0.12)", color:"#f97316", Icon:IHeadphones, label:"Podcast"  },
+      podcast: { bg:"rgba(249,115,22,0.12)", color:"#f97316", Icon:IHeadphones, label:"Podcast"  },
+      pdf:     { bg:"rgba(240,70,97,0.12)",  color:"#f04661", Icon:IFileText,   label:"PDF"      },
+      url:     { bg:"rgba(59,130,246,0.12)", color:"#60a5fa", Icon:IMonitor,    label:"Video"    },
+      text:    { bg:"rgba(167,139,250,0.12)",color:"#a78bfa", Icon:IBookOpen,   label:"Article"  },
+    };
+
+    function TypeIcon({ type }) {
+      const s = typeConfig[type] ?? typeConfig.text;
+      const Icon = s.Icon;
+      return (
+        <div style={{height:"36px",width:"36px",borderRadius:"10px",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,background:s.bg}}>
+          <Icon size={15} style={{color:s.color}} />
+        </div>
+      );
+    }
+
+    // ─── Donut ────────────────────────────────────────────────────────────────
+    function Donut({ earned, target, size=64, stroke=8 }) {
+      const r = (size - stroke) / 2;
+      const circ = 2 * Math.PI * r;
+      const pct = target > 0 ? Math.min(earned / target, 1) : 0;
+      const arcColor = target === 0 ? "#5d7497" : pct >= 1 ? "#22c55e" : "#7b68ee";
+      const finalOffset = target === 0 ? circ * 0.12 : circ * (1 - pct);
+      const c = size / 2;
+      const [offset, setOffset] = useState(circ);
+      useEffect(() => {
+        setOffset(circ);
+        const t = setTimeout(() => setOffset(finalOffset), 100);
+        return () => clearTimeout(t);
+      }, [earned, target]);
+      return (
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{transform:"rotate(-90deg)"}}>
+          <circle cx={c} cy={c} r={r} fill="none" stroke={arcColor} strokeWidth={stroke} opacity={0.2} />
+          <circle cx={c} cy={c} r={r} fill="none" stroke={arcColor} strokeWidth={stroke}
+            strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+            style={{transition:"stroke-dashoffset 1s ease-out"}} />
+        </svg>
+      );
+    }
+
+    // ─── Toggle ───────────────────────────────────────────────────────────────
+    function Toggle({ on, onChange }) {
+      return (
+        <button role="switch" aria-checked={on} onClick={() => onChange(!on)}
+          style={{position:"relative",display:"inline-flex",height:"20px",width:"36px",borderRadius:"9999px",border:"2px solid transparent",background:on?T.accent:"#2d3a55",transition:"background 0.2s",flexShrink:0,cursor:"pointer",padding:0}}>
+          <span style={{display:"inline-block",height:"16px",width:"16px",borderRadius:"9999px",background:"white",boxShadow:"0 1px 3px rgba(0,0,0,0.4)",transform:on?"translateX(16px)":"translateX(0)",transition:"transform 0.2s"}} />
+        </button>
+      );
+    }
+
+    // ─── Page config (for breadcrumbs) ───────────────────────────────────────
+    const pageConfig = {
+      dashboard: { label:"Dashboard",        parent:null },
+      library:   { label:"CPD Library",      parent:null },
+      content:   { label:"Content Details",  parent:{ id:"library", label:"CPD Library" } },
+      quiz:      { label:"Assessment",       parent:{ id:"library", label:"CPD Library" } },
+      results:   { label:"Results",          parent:{ id:"library", label:"CPD Library" } },
+      profile:   { label:"Account Settings", parent:null },
+    };
+
+    // ─── Header ───────────────────────────────────────────────────────────────
+    function Header({ currentPage, onNavigate, user, onLogout }) {
+      const initials = user?.name?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() ?? "U";
+      const [dropOpen, setDropOpen] = useState(false);
+      const [searchOpen, setSearchOpen] = useState(false);
+      const [searchQuery, setSearchQuery] = useState("");
+      const [bellOpen, setBellOpen] = useState(false);
+      const dropRef = useRef(null);
+      const searchRef = useRef(null);
+      const bellRef = useRef(null);
+
+      useEffect(() => {
+        function handleClick(e) {
+          if (dropRef.current && !dropRef.current.contains(e.target)) setDropOpen(false);
+          if (searchRef.current && !searchRef.current.contains(e.target)) { setSearchOpen(false); setSearchQuery(""); }
+          if (bellRef.current && !bellRef.current.contains(e.target)) setBellOpen(false);
+        }
+        document.addEventListener("mousedown", handleClick);
+        return () => document.removeEventListener("mousedown", handleClick);
+      }, []);
+
+      const searchResults = searchQuery.trim().length > 1
+        ? [...contentItems, ...completedEducation].filter(i =>
+            i.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            i.provider.toLowerCase().includes(searchQuery.toLowerCase())
+          ).slice(0, 6)
+        : [];
+
+      const notifications = [
+        { id:1, text:"You earned 1.0 CPD pts from MoneyMind", time:"2 days ago", unread:true },
+        { id:2, text:"New content added: Insurance Podcast 4", time:"5 days ago", unread:true },
+        { id:3, text:"Best Interest Duty guide completed", time:"1 week ago", unread:false },
+        { id:4, text:"Your annual CPD progress is at 66%", time:"2 weeks ago", unread:false },
+      ];
+      const unreadCount = notifications.filter(n => n.unread).length;
+      const config = pageConfig[currentPage] ?? { label: currentPage, parent: null };
+      return (
+        <header style={{position:"fixed",top:0,left:0,right:0,zIndex:30,height:"56px",background:T.card,borderBottom:`1px solid ${T.border}`}}>
+          <div style={{height:"100%",padding:"0 20px",maxWidth:"1255px",margin:"0 auto",width:"100%",display:"flex",alignItems:"center",gap:"16px"}}>
+
+            {/* Logo */}
+            <button onClick={()=>onNavigate("dashboard")} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",flexShrink:0,padding:0,width:"240px"}}>
+              <Logo />
+            </button>
+
+            <div style={{width:"1px",height:"20px",background:T.border,flexShrink:0}} />
+
+            {/* Breadcrumbs */}
+            <nav style={{display:"flex",alignItems:"center",gap:"8px",fontSize:"14px"}}>
+              {config.parent && (
+                <>
+                  <button onClick={()=>onNavigate(config.parent.id)}
+                    style={{background:"none",border:"none",cursor:"pointer",color:T.muted,fontSize:"14px",padding:0,transition:"color 0.15s"}}
+                    onMouseEnter={e=>e.currentTarget.style.color=T.text} onMouseLeave={e=>e.currentTarget.style.color=T.muted}>
+                    {config.parent.label}
+                  </button>
+                  <svg width="6" height="10" viewBox="0 0 6 10" fill="none"><path d="M1 1L5 5L1 9" stroke={T.muted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </>
+              )}
+              <span style={{fontWeight:600,color:T.text}}>{config.label}</span>
+            </nav>
+
+            {/* Right controls */}
+            <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:"6px"}}>
+
+              {/* Search */}
+              <div ref={searchRef} style={{position:"relative"}}>
+                <button onClick={()=>{ setSearchOpen(o=>!o); setBellOpen(false); setDropOpen(false); }}
+                  style={{height:"34px",width:"34px",borderRadius:"9999px",background:searchOpen?"rgba(255,255,255,0.08)":"none",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:searchOpen?T.text:T.muted,transition:"all 0.15s"}}>
+                  <ISearch size={16}/>
+                </button>
+                {searchOpen && (
+                  <div style={{position:"absolute",right:0,top:"42px",zIndex:50,width:"340px",borderRadius:"14px",border:`1px solid ${T.border}`,background:T.card,boxShadow:"0 16px 40px rgba(0,0,0,0.5)",overflow:"hidden"}}>
+                    <div style={{padding:"12px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:"8px"}}>
+                      <ISearch size={15} style={{color:T.muted,flexShrink:0}}/>
+                      <input autoFocus value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}
+                        placeholder="Search content, providers..."
+                        style={{flex:1,background:"none",border:"none",outline:"none",fontSize:"14px",color:T.text}} />
+                      {searchQuery && <button onClick={()=>setSearchQuery("")} style={{background:"none",border:"none",cursor:"pointer",color:T.muted,padding:0,fontSize:"16px",lineHeight:1}}>×</button>}
+                    </div>
+                    {searchQuery.trim().length > 1 && (
+                      searchResults.length === 0
+                        ? <p style={{fontSize:"13px",color:T.muted,padding:"16px",margin:0,textAlign:"center"}}>No results found.</p>
+                        : <div>
+                            {searchResults.map(item => (
+                              <button key={item.id} onClick={()=>{ setSearchOpen(false); setSearchQuery(""); onNavigate && onNavigate("library"); }}
+                                style={{width:"100%",textAlign:"left",display:"flex",alignItems:"center",gap:"10px",padding:"10px 14px",background:"none",border:"none",cursor:"pointer",borderBottom:`1px solid ${T.border}`,transition:"background 0.1s"}}
+                                onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.04)"} onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                                <TypeIcon type={item.type}/>
+                                <div style={{minWidth:0}}>
+                                  <p style={{fontSize:"13px",fontWeight:500,color:T.text,margin:0,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.title}</p>
+                                  <p style={{fontSize:"11px",color:T.muted,margin:"2px 0 0"}}>{item.provider} · {item.cpdPoints} CPD pts</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                    )}
+                    {searchQuery.trim().length <= 1 && (
+                      <p style={{fontSize:"12px",color:T.muted,padding:"14px 16px",margin:0}}>Type at least 2 characters to search…</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Bell */}
+              <div ref={bellRef} style={{position:"relative"}}>
+                <button onClick={()=>{ setBellOpen(o=>!o); setSearchOpen(false); setDropOpen(false); }}
+                  style={{height:"34px",width:"34px",borderRadius:"9999px",background:bellOpen?"rgba(255,255,255,0.08)":"none",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:bellOpen?T.text:T.muted,transition:"all 0.15s",position:"relative"}}>
+                  <IBell size={16}/>
+                  {unreadCount > 0 && <span style={{position:"absolute",top:"6px",right:"6px",width:"7px",height:"7px",borderRadius:"9999px",background:T.accent,border:`2px solid ${T.card}`}}/>}
+                </button>
+                {bellOpen && (
+                  <div style={{position:"absolute",right:0,top:"42px",zIndex:50,width:"300px",borderRadius:"14px",border:`1px solid ${T.border}`,background:T.card,boxShadow:"0 16px 40px rgba(0,0,0,0.5)",overflow:"hidden"}}>
+                    <div style={{padding:"14px 16px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                      <span style={{fontSize:"13px",fontWeight:600,color:T.text}}>Notifications</span>
+                      {unreadCount > 0 && <span style={{fontSize:"11px",background:T.accentBg,color:T.accent,padding:"2px 8px",borderRadius:"9999px",fontWeight:600}}>{unreadCount} new</span>}
+                    </div>
+                    {notifications.map((n,i) => (
+                      <div key={n.id} style={{padding:"12px 16px",borderBottom:i<notifications.length-1?`1px solid ${T.border}`:"none",display:"flex",alignItems:"flex-start",gap:"10px",background:n.unread?"rgba(123,104,238,0.04)":"none"}}>
+                        <div style={{width:"7px",height:"7px",borderRadius:"9999px",background:n.unread?T.accent:"transparent",border:`2px solid ${n.unread?T.accent:T.border}`,flexShrink:0,marginTop:"5px"}}/>
+                        <div>
+                          <p style={{fontSize:"13px",color:T.text,margin:0,lineHeight:1.4}}>{n.text}</p>
+                          <p style={{fontSize:"11px",color:T.muted,margin:"4px 0 0"}}>{n.time}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div style={{width:"1px",height:"20px",background:T.border,margin:"0 4px"}} />
+              <div ref={dropRef} style={{position:"relative"}}>
+                <button onClick={()=>setDropOpen(o=>!o)}
+                  style={{height:"34px",width:"34px",borderRadius:"9999px",background:T.accent,display:"flex",alignItems:"center",justifyContent:"center",border:`2px solid ${dropOpen?"rgba(123,104,238,0.6)":"transparent"}`,cursor:"pointer",flexShrink:0,transition:"border-color 0.15s"}}>
+                  <span style={{color:"white",fontWeight:700,fontSize:"12px"}}>{initials}</span>
+                </button>
+                {dropOpen && (
+                  <div style={{position:"absolute",right:0,top:"42px",zIndex:50,width:"210px",borderRadius:"14px",border:`1px solid ${T.border}`,background:T.card,boxShadow:"0 16px 40px rgba(0,0,0,0.5)",overflow:"hidden"}}>
+                    <div style={{padding:"14px 16px",borderBottom:`1px solid ${T.border}`}}>
+                      <p style={{fontSize:"13px",fontWeight:600,color:T.text,margin:0}}>{user?.name}</p>
+                      <p style={{fontSize:"12px",color:T.muted,margin:"2px 0 0"}}>{user?.email}</p>
+                    </div>
+                    <div style={{padding:"6px"}}>
+                      <button onClick={()=>{setDropOpen(false);onNavigate("profile");}}
+                        style={{width:"100%",textAlign:"left",display:"flex",alignItems:"center",gap:"10px",padding:"9px 12px",borderRadius:"8px",background:"none",border:"none",cursor:"pointer",fontSize:"13px",color:T.text,transition:"background 0.1s"}}
+                        onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.05)"} onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        Account Settings
+                      </button>
+                      <button onClick={()=>{setDropOpen(false);onLogout();}}
+                        style={{width:"100%",textAlign:"left",display:"flex",alignItems:"center",gap:"10px",padding:"9px 12px",borderRadius:"8px",background:"none",border:"none",cursor:"pointer",fontSize:"13px",color:T.red,transition:"background 0.1s"}}
+                        onMouseEnter={e=>e.currentTarget.style.background=T.redBg} onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.red} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        Log Out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </header>
+      );
+    }
+
+    // ─── Sidebar ──────────────────────────────────────────────────────────────
+    function Sidebar({ currentPage, onNavigate, user }) {
+      const initials = user?.name?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() ?? "U";
+
+      const navItems = [
+        {
+          id: "dashboard",
+          label: "Dashboard",
+          match: ["dashboard"],
+          icon: (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+          ),
+        },
+        {
+          id: "library",
+          label: "CPD Library",
+          match: ["library","content","quiz","results"],
+          icon: (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          ),
+        },
+      ];
+
+      function isActive(item) {
+        return item.match.includes(currentPage);
+      }
+
+      return (
+        <div style={{width:"240px",flexShrink:0}}>
+        <aside style={{position:"fixed",top:"56px",width:"240px",height:"calc(100vh - 56px)",overflowY:"auto",display:"flex",flexDirection:"column",gap:"8px",padding:"24px 0px 24px 0px"}}>
+          {/* User card */}
+          <div style={{borderRadius:"14px",border:`1px solid ${T.border}`,background:T.card,padding:"16px",display:"flex",alignItems:"center",gap:"12px"}}>
+            <div style={{height:"40px",width:"40px",borderRadius:"9999px",background:T.accent,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <span style={{color:"white",fontWeight:700,fontSize:"13px"}}>{initials}</span>
+            </div>
+            <div style={{minWidth:0}}>
+              <p style={{fontSize:"13px",fontWeight:600,color:T.text,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user?.name}</p>
+              <p style={{fontSize:"11px",color:T.muted,margin:"2px 0 0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user?.role} · AR#{user?.licenseNumber}</p>
+            </div>
+          </div>
+
+          {/* Nav */}
+          <div style={{borderRadius:"14px",border:`1px solid ${T.border}`,background:T.card,padding:"8px"}}>
+            <p style={{fontSize:"10px",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.08em",padding:"6px 10px 4px",margin:0}}>Navigation</p>
+            {navItems.map(item => {
+              const active = isActive(item);
+              return (
+                <button key={item.id} onClick={()=>onNavigate(item.id)}
+                  style={{width:"100%",display:"flex",alignItems:"center",gap:"10px",padding:"9px 10px",borderRadius:"9px",fontSize:"13px",fontWeight:active?600:400,background:active?T.accentBg:"none",color:active?T.accent:T.muted,border:"none",cursor:"pointer",transition:"all 0.15s",textAlign:"left"}}
+                  onMouseEnter={e=>{ if(!active){ e.currentTarget.style.background="rgba(255,255,255,0.04)"; e.currentTarget.style.color=T.text; }}}
+                  onMouseLeave={e=>{ if(!active){ e.currentTarget.style.background="none"; e.currentTarget.style.color=T.muted; }}}>
+                  <span style={{flexShrink:0,display:"flex",color:"inherit"}}>{item.icon}</span>
+                  {item.label}
+                  {active && <span style={{marginLeft:"auto",width:"6px",height:"6px",borderRadius:"9999px",background:T.accent,flexShrink:0}} />}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Annual progress mini-card */}
+          <div style={{borderRadius:"14px",border:`1px solid ${T.border}`,background:T.card,padding:"16px"}}>
+            <p style={{fontSize:"11px",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",margin:"0 0 12px"}}>Annual Progress</p>
+            {(() => {
+              const earned = parseFloat(cpdCategories.reduce((s,c)=>s+c.earned,0).toFixed(2));
+              const pct = Math.min(100, Math.round((earned / ANNUAL_CPD_TARGET) * 100));
+              return (
+                <>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:"8px"}}>
+                    <span style={{fontSize:"22px",fontWeight:"bold",color:T.accent}}>{earned}</span>
+                    <span style={{fontSize:"12px",color:T.muted}}>of {ANNUAL_CPD_TARGET} pts</span>
+                  </div>
+                  <div style={{height:"5px",background:T.border,borderRadius:"9999px",overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${pct}%`,background:T.accent,borderRadius:"9999px",transition:"width 0.7s"}} />
+                  </div>
+                  <p style={{fontSize:"12px",color:pct>=100?T.green:T.muted,margin:"8px 0 0",fontWeight:500}}>{pct}% complete</p>
+                </>
+              );
+            })()}
+          </div>
+        </aside>
+        </div>
+      );
+    }
+
+    // ─── Login ────────────────────────────────────────────────────────────────
+    function Login({ onLogin }) {
+      const [email, setEmail] = useState("");
+      const [password, setPassword] = useState("");
+      const [showPw, setShowPw] = useState(false);
+      const [error, setError] = useState("");
+
+      function handleSubmit(e) {
+        e.preventDefault();
+        if (!email || !password) { setError("Please enter your email and password."); return; }
+        onLogin({ name:"Alex Johnson", email, role:"Advisor", licenseNumber:"54321" });
+      }
+
+      const inputStyle = {borderRadius:"10px",border:`1px solid ${T.border}`,background:T.cardAlt,padding:"10px 12px",fontSize:"14px",outline:"none",width:"100%",color:T.text};
+
+      return (
+        <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"0 16px",background:T.bg}}>
+          <div style={{width:"100%",maxWidth:"384px",display:"flex",flexDirection:"column",gap:"24px"}}>
+            <div style={{display:"flex",justifyContent:"center"}}><Logo /></div>
+            <div style={{borderRadius:"16px",background:T.card,border:`1px solid ${T.border}`,padding:"32px"}}>
+              <form onSubmit={handleSubmit} style={{display:"flex",flexDirection:"column",gap:"20px"}}>
+                <div>
+                  <h1 style={{fontSize:"24px",fontWeight:"bold",margin:"0 0 4px",color:T.text}}>Welcome back</h1>
+                  <p style={{fontSize:"14px",color:T.muted,margin:0}}>Sign in to your professional account</p>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+                  <label style={{fontSize:"12px",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",color:T.muted}} htmlFor="email">Email</label>
+                  <input id="email" type="email" placeholder="advisor@example.com" value={email} onChange={e=>setEmail(e.target.value)} style={inputStyle} />
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <label style={{fontSize:"12px",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",color:T.muted}} htmlFor="password">Password</label>
+                    <button type="button" style={{fontSize:"12px",color:T.accent,background:"none",border:"none",cursor:"pointer",padding:0}}>Forgot password?</button>
+                  </div>
+                  <div style={{position:"relative"}}>
+                    <input id="password" type={showPw?"text":"password"} placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)}
+                      style={{...inputStyle,paddingRight:"36px"}} />
+                    <button type="button" onClick={()=>setShowPw(p=>!p)}
+                      style={{position:"absolute",right:"10px",top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:T.muted,display:"flex",alignItems:"center",padding:0}}>
+                      {showPw ? <IEyeOff size={15}/> : <IEye size={15}/>}
+                    </button>
+                  </div>
+                </div>
+                {error && <p style={{fontSize:"14px",color:T.red,margin:0}}>{error}</p>}
+                <button type="submit" style={{background:T.accent,color:"white",fontWeight:600,padding:"11px",borderRadius:"10px",border:"none",cursor:"pointer",fontSize:"14px",transition:"background 0.15s"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=T.accentHov} onMouseLeave={e=>e.currentTarget.style.background=T.accent}>
+                  Sign in
+                </button>
+              </form>
+            </div>
+            <p style={{textAlign:"center",fontSize:"12px",color:T.muted,margin:0}}>professional.cpdcheck.com · Continuing Professional Development</p>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Dashboard ────────────────────────────────────────────────────────────
+    function Dashboard({ onSelectContent }) {
+      const [enabled, setEnabled] = useState(Object.fromEntries(cpdCategories.map(c=>[c.id, c.id!=="general"])));
+      const totalEarned = parseFloat(cpdCategories.reduce((s,c)=>s+c.earned,0).toFixed(2));
+      const annualPct = Math.min(100, Math.round((totalEarned / ANNUAL_CPD_TARGET) * 100));
+
+      function handleExport() {
+        const rows = [
+          ["CPD Category Report"],[""],["Category","Earned","Target"],
+          ...cpdCategories.map(c=>[c.label,c.earned,c.target||"No requirement"]),
+          [""],["Completed Education"],["Title","Provider","CPD Points","Date","Type"],
+          ...completedEducation.map(i=>[i.title,i.provider,i.cpdPoints,i.completedDate,i.type]),
+        ];
+        const csv = rows.map(r=>r.map(String).join(",")).join("\n");
+        const blob = new Blob([csv],{type:"text/csv"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href=url; a.download="cpd-report.csv"; a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      return (
+        <div style={{display:"flex",flexDirection:"column",gap:"16px"}}>
+          {/* Actions */}
+          <div style={{display:"flex",justifyContent:"flex-end",gap:"12px"}}>
+            <button onClick={handleExport}
+              style={{display:"flex",alignItems:"center",gap:"8px",padding:"9px 18px",borderRadius:"10px",border:`1px solid ${T.border}`,background:T.card,fontSize:"14px",fontWeight:500,cursor:"pointer",color:T.text,transition:"border-color 0.15s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor=T.borderHov} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
+              <IDownload size={15}/> Export Report
+            </button>
+          </div>
+
+          {/* Annual compliance + categories panel */}
+          <div style={{borderRadius:"20px",overflow:"hidden",background:T.cardAlt,border:`1px solid ${T.border}`}}>
+            {/* Progress card */}
+            <div style={{margin:"12px 12px 0",borderRadius:"16px",background:T.card,padding:"20px 24px 18px",border:`1px solid ${T.border}`}}>
+              <p style={{fontSize:"13px",fontWeight:600,margin:"0 0 14px",color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Annual Compliance Progress</p>
+              <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:"14px"}}>
+                <div>
+                  <p style={{fontSize:"52px",fontWeight:"bold",color:T.accent,lineHeight:1,margin:0}}>{totalEarned}</p>
+                  <p style={{fontSize:"14px",color:T.muted,marginTop:"6px",marginBottom:0}}>
+                    of {ANNUAL_CPD_TARGET} <span style={{color:T.accent,fontWeight:600}}>CPD points</span> earned
+                  </p>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <p style={{fontSize:"28px",fontWeight:"bold",color:annualPct>=100?T.green:T.text,margin:0}}>{annualPct}%</p>
+                  <p style={{fontSize:"12px",color:T.muted,margin:"2px 0 0"}}>complete</p>
+                </div>
+              </div>
+              <div style={{height:"6px",background:T.border,borderRadius:"9999px",overflow:"hidden"}}>
+                <div style={{height:"100%",background:T.accent,borderRadius:"9999px",width:`${annualPct}%`,transition:"width 0.7s"}} />
+              </div>
+            </div>
+
+            {/* Category grid */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px",padding:"12px"}}>
+              {cpdCategories.map(cat => {
+                const met = cat.target > 0 && cat.earned >= cat.target;
+                const isTax = cat.id === "tax";
+                return (
+                  <div key={cat.id} style={{borderRadius:"14px",background:"rgba(255,255,255,0.03)",border:`1px solid ${T.border}`,padding:"20px 16px",display:"flex",alignItems:"center",gap:"12px",opacity:isTax&&!enabled[cat.id]?0.4:1,transition:"opacity 0.2s"}}>
+                    <div style={{position:"relative",flexShrink:0}}>
+                      <Donut earned={cat.earned} target={cat.target} size={70} stroke={6} />
+                      <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                        <span style={{fontSize:"11px",fontWeight:"bold",color:T.text,lineHeight:1}}>{cat.earned}/{cat.target>0?cat.target:"–"}</span>
+                      </div>
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <p style={{fontSize:"12px",fontWeight:600,color:T.text,lineHeight:1.3,margin:0}}>{cat.shortLabel}</p>
+                      {cat.target > 0
+                        ? <p style={{fontSize:"11px",fontWeight:500,marginTop:"4px",marginBottom:0,color:met?T.green:"rgba(123,104,238,0.8)"}}>{met?"Requirement met":`${(cat.target-cat.earned).toFixed(1)} pts to go`}</p>
+                        : <p style={{fontSize:"11px",color:T.muted,marginTop:"4px",marginBottom:0}}>No requirement</p>
+                      }
+                    </div>
+                    {isTax && <Toggle on={enabled[cat.id]} onChange={v=>setEnabled(p=>({...p,[cat.id]:v}))} />}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Sub categories */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"8px"}}>
+            {subCategories.map(sub => (
+              <div key={sub.id} style={{display:"flex",alignItems:"center",gap:"8px",borderRadius:"10px",border:`1px solid ${T.border}`,background:T.card,padding:"11px 10px"}}>
+                <span style={{flexShrink:0,minWidth:"30px",height:"26px",borderRadius:"6px",border:`1px solid ${sub.earned?T.green:T.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"10px",fontWeight:600,background:sub.earned?T.greenBg:T.cardAlt,color:sub.earned?T.green:T.muted}}>
+                  {sub.earned??"–"}
+                </span>
+                <span style={{fontSize:"12px",lineHeight:1.3,color:T.text}}>{sub.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Completed education */}
+          <div style={{marginTop:"8px"}}>
+            <p style={{fontSize:"14px",fontWeight:600,marginBottom:"12px",marginTop:0,color:T.text}}>My Completed Education</p>
+            <div style={{borderRadius:"16px",border:`1px solid ${T.border}`,background:T.card,overflow:"hidden"}}>
+              {/* Table header */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr auto auto auto",gap:"16px",padding:"12px 20px",borderBottom:`1px solid ${T.border}`}}>
+                {["Activity","Provider","Points","Date"].map(h => (
+                  <span key={h} style={{fontSize:"11px",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em"}}>{h}</span>
+                ))}
+              </div>
+              {completedEducation.map((item, i) => (
+                <button key={item.id} onClick={()=>onSelectContent?.(item)}
+                  style={{width:"100%",textAlign:"left",display:"grid",gridTemplateColumns:"1fr auto auto auto",gap:"16px",alignItems:"center",padding:"14px 20px",background:"none",border:"none",cursor:"pointer",borderBottom:i<completedEducation.length-1?`1px solid ${T.border}`:"none",transition:"background 0.15s"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.02)"} onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                  <div style={{display:"flex",alignItems:"center",gap:"12px",minWidth:0}}>
+                    <TypeIcon type={item.type} />
+                    <div style={{minWidth:0}}>
+                      <p style={{fontSize:"13px",fontWeight:500,color:T.text,margin:0,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.title}</p>
+                      {item.isImported && <span style={{fontSize:"10px",background:T.accentBg,color:T.accent,padding:"1px 7px",borderRadius:"9999px",fontWeight:600,marginTop:"3px",display:"inline-block"}}>Imported</span>}
+                    </div>
+                  </div>
+                  <span style={{fontSize:"13px",color:T.muted,whiteSpace:"nowrap"}}>{item.provider}</span>
+                  <span style={{fontSize:"13px",fontWeight:600,color:T.accent,whiteSpace:"nowrap"}}>{item.cpdPoints} pts</span>
+                  <span style={{fontSize:"12px",color:T.muted,whiteSpace:"nowrap"}}>{item.completedDate}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Library ──────────────────────────────────────────────────────────────
+    function Library({ onSelectContent }) {
+      const [activeTab, setActiveTab] = useState("all");
+      const [category, setCategory] = useState("all");
+      const [categoryOpen, setCategoryOpen] = useState(false);
+
+      const categoryOptions = [
+        { value:"all",        label:"All Categories"                       },
+        { value:"clientCare", label:"Client Care and Practice"             },
+        { value:"general",    label:"General"                              },
+        { value:"ethics",     label:"Professionalism and Ethics"           },
+        { value:"regulatory", label:"Reg Compliance & Consumer Protection" },
+        { value:"tax",        label:"Tax (Financial) Advice"               },
+        { value:"technical",  label:"Technical Competence"                 },
+      ];
+
+      const filtered = useMemo(() => {
+        let items = contentItems;
+        if (activeTab==="completed")   items=items.filter(i=>i.status==="completed");
+        else if (activeTab==="inProgress") items=items.filter(i=>i.status==="inProgress");
+        else if (activeTab==="notStarted") items=items.filter(i=>i.status==="notStarted");
+        if (category!=="all") {
+          const cat = categoryMap[category];
+          items=items.filter(i=>i.categories.some(c=>c.name===cat));
+        }
+        return items;
+      }, [activeTab, category]);
+
+      const tabs = [
+        {value:"all",label:"All"},{value:"inProgress",label:"In Progress"},
+        {value:"notStarted",label:"Not Started"},{value:"completed",label:"Completed"},
+      ];
+
+      return (
+        <div style={{display:"flex",flexDirection:"column",gap:"20px"}}>
+          <div>
+            <h1 style={{fontSize:"24px",fontWeight:"bold",margin:"0 0 4px",color:T.text}}>CPD Library</h1>
+            <p style={{fontSize:"14px",color:T.muted,margin:0}}>Browse accredited CPD content. Complete the assessment to earn CPD points.</p>
+          </div>
+
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:"8px"}}>
+            <div style={{display:"flex",gap:"6px"}}>
+              {tabs.map(t => (
+                <button key={t.value} onClick={()=>setActiveTab(t.value)}
+                  style={{padding:"7px 16px",borderRadius:"9999px",fontSize:"13px",fontWeight:500,border:`1px solid ${activeTab===t.value?T.accent:T.border}`,background:activeTab===t.value?T.accent:"none",color:activeTab===t.value?"white":T.muted,cursor:"pointer",transition:"all 0.15s"}}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <div style={{position:"relative",flexShrink:0}}>
+              <button onClick={()=>setCategoryOpen(o=>!o)}
+                style={{display:"flex",alignItems:"center",gap:"6px",padding:"7px 14px",borderRadius:"10px",border:`1px solid ${T.border}`,background:T.card,fontSize:"13px",fontWeight:500,cursor:"pointer",color:T.text}}>
+                {categoryOptions.find(o=>o.value===category)?.label}
+                <IChevronD size={14} style={{color:T.muted,transform:categoryOpen?"rotate(180deg)":"none",transition:"transform 0.2s"}}/>
+              </button>
+              {categoryOpen && (
+                <div style={{position:"absolute",right:0,top:"44px",zIndex:20,minWidth:"260px",borderRadius:"12px",border:`1px solid ${T.border}`,background:T.card,boxShadow:"0 16px 40px rgba(0,0,0,0.5)",overflow:"hidden",fontSize:"14px"}}>
+                  {categoryOptions.map((opt,i) => (
+                    <div key={opt.value}>
+                      {i>0 && <div style={{height:"1px",background:T.border}} />}
+                      <button onClick={()=>{setCategory(opt.value);setCategoryOpen(false);}}
+                        style={{width:"100%",textAlign:"left",padding:"11px 16px",background:"none",border:"none",cursor:"pointer",fontWeight:category===opt.value?600:400,color:category===opt.value?T.accent:T.text,transition:"background 0.1s"}}
+                        onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.04)"} onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                        {opt.label}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {filtered.length===0
+            ? <p style={{fontSize:"14px",color:T.muted,padding:"40px 0",textAlign:"center"}}>No activities match your filters.</p>
+            : <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"16px"}}>
+                {filtered.map(item => <ContentCard key={item.id} item={item} onSelect={()=>onSelectContent(item)} />)}
+              </div>
+          }
+        </div>
+      );
+    }
+
+    function ContentCard({ item, onSelect }) {
+      const tc = typeConfig[item.type] ?? typeConfig.text;
+      const Icon = tc.Icon;
+      return (
+        <div onClick={onSelect}
+          style={{borderRadius:"16px",border:`1px solid ${T.border}`,background:T.card,overflow:"hidden",cursor:"pointer",display:"flex",flexDirection:"column",transition:"border-color 0.2s,box-shadow 0.2s"}}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor=T.borderHov;e.currentTarget.style.boxShadow="0 8px 32px rgba(0,0,0,0.3)";}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.boxShadow="none";}}>
+          <div style={{height:"170px",background:T.cardAlt,overflow:"hidden",position:"relative",borderBottom:`1px solid ${T.border}`}}>
+            {item.photo
+              ? <img src={item.photo} alt={item.title} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}} />
+              : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <div style={{height:"72px",width:"72px",borderRadius:"9999px",background:tc.bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <Icon size={28} style={{color:tc.color}} />
+                  </div>
+                </div>
+            }
+            <div style={{position:"absolute",top:"10px",right:"10px",background:"rgba(0,0,0,0.55)",backdropFilter:"blur(4px)",borderRadius:"8px",padding:"4px 10px",display:"flex",alignItems:"center",gap:"5px",fontSize:"11px",fontWeight:600,color:"white"}}>
+              <Icon size={11} style={{color:tc.color}}/> {tc.label}
+            </div>
+          </div>
+          <div style={{padding:"16px",display:"flex",flexDirection:"column",flex:1,gap:"12px"}}>
+            <div style={{flex:1}}>
+              <h3 style={{fontSize:"14px",fontWeight:700,lineHeight:1.3,margin:"0 0 6px",color:T.text,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{item.title}</h3>
+              <p style={{fontSize:"12px",color:T.muted,margin:0,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{item.description}</p>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:"6px"}}>
+              {item.categories.map(cat => (
+                <span key={cat.name} style={{fontSize:"11px",background:"rgba(34,197,94,0.1)",color:"#4ade80",border:"1px solid rgba(34,197,94,0.2)",padding:"3px 10px",borderRadius:"9999px",fontWeight:500}}>{cat.name}</span>
+              ))}
+              <span style={{fontSize:"11px",background:T.accentBg,color:T.accent,border:`1px solid rgba(123,104,238,0.3)`,padding:"3px 10px",borderRadius:"9999px",fontWeight:500}}>{item.cpdPoints} pts</span>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:"12px",fontSize:"12px",color:T.muted,borderTop:`1px solid ${T.border}`,paddingTop:"12px"}}>
+              <span style={{display:"flex",alignItems:"center",gap:"4px"}}><IClock size={11}/> {item.duration} min</span>
+              <span style={{display:"flex",alignItems:"center",gap:"4px",color:tc.color}}><Icon size={11}/> {tc.label}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Content detail ───────────────────────────────────────────────────────
+    function ContentDetail({ item, onBack, onStartQuiz }) {
+      if (!item) return null;
+      const tc = typeConfig[item.type] ?? typeConfig.text;
+      const Icon = tc.Icon;
+      const primaryCategory = item.categories?.[0]?.name ?? "";
+      const statusLabel = {completed:"Completed",inProgress:"In Progress",notStarted:"Not Started"}[item.status] ?? "Not Started";
+      const statusColor = {completed:T.green,inProgress:T.orange,notStarted:T.muted}[item.status] ?? T.muted;
+
+      return (
+        <div style={{display:"flex",gap:"24px",alignItems:"flex-start"}}>
+          <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:"20px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:"8px",fontSize:"13px"}}>
+              <span style={{display:"flex",alignItems:"center",gap:"6px",color:tc.color,fontWeight:500}}><Icon size={13}/> {tc.label}</span>
+              <span style={{color:T.border}}>·</span>
+              <span style={{color:T.muted}}>{primaryCategory}</span>
+              <span style={{color:T.border}}>·</span>
+              <span style={{fontWeight:500,color:statusColor}}>{statusLabel}</span>
+            </div>
+            <div>
+              <h1 style={{fontSize:"28px",fontWeight:"bold",lineHeight:1.2,margin:"0 0 12px",color:T.text}}>{item.title}</h1>
+              <p style={{color:T.muted,lineHeight:1.7,margin:0,fontSize:"14px"}}>{item.description}</p>
+            </div>
+
+            {item.type==="pdf" ? (
+              <div style={{borderRadius:"16px",background:T.cardAlt,border:`1px solid ${T.border}`,height:"260px",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"12px"}}>
+                  <IFileText size={32} style={{color:T.red}}/>
+                  <p style={{fontSize:"14px",fontWeight:600,margin:0,color:T.text}}>PDF Content</p>
+                  <p style={{fontSize:"12px",color:T.muted,margin:0}}>Content viewer renders here</p>
+                </div>
+              </div>
+            ) : item.type==="text" ? (
+              <div style={{borderRadius:"16px",background:T.cardAlt,border:`1px solid ${T.border}`,height:"260px",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"12px"}}>
+                  <IBookOpen size={32} style={{color:"#a78bfa"}}/>
+                  <p style={{fontSize:"14px",fontWeight:600,margin:0,color:T.text}}>Article Content</p>
+                  <p style={{fontSize:"12px",color:T.muted,margin:0}}>Content viewer renders here</p>
+                </div>
+              </div>
+            ) : (
+              <div style={{borderRadius:"16px",border:`1px solid ${T.border}`,background:T.card,overflow:"hidden"}}>
+                <div style={{background:T.cardAlt,margin:"14px 14px 0",borderRadius:"12px",height:"220px",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"12px"}}>
+                  <button style={{height:"52px",width:"52px",borderRadius:"9999px",background:T.accent,display:"flex",alignItems:"center",justifyContent:"center",border:"none",cursor:"pointer",boxShadow:"0 4px 20px rgba(123,104,238,0.4)"}}>
+                    <IPlay size={20}/>
+                  </button>
+                  <span style={{color:T.muted,fontSize:"13px"}}>Click to play</span>
+                </div>
+                <div style={{padding:"16px 20px",display:"flex",flexDirection:"column",gap:"12px"}}>
+                  <div>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:"12px",color:T.muted,marginBottom:"8px"}}>
+                      <span>0:00</span><span>{String(Math.floor(item.duration)).padStart(2,"0")}:00</span>
+                    </div>
+                    <div style={{height:"4px",background:T.border,borderRadius:"9999px"}}>
+                      <div style={{height:"100%",width:"0%",borderRadius:"9999px",background:T.accent}}/>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
+                    <button style={{background:"none",border:"none",cursor:"pointer",color:T.muted,display:"flex"}}><ISkipBack size={20}/></button>
+                    <button style={{height:"38px",width:"38px",borderRadius:"9999px",background:T.accent,display:"flex",alignItems:"center",justifyContent:"center",border:"none",cursor:"pointer"}}><IPlay size={14}/></button>
+                    <button style={{background:"none",border:"none",cursor:"pointer",color:T.muted,display:"flex"}}><ISkipFwd size={20}/></button>
+                    <span style={{fontSize:"12px",color:T.muted,fontWeight:500,marginLeft:"4px"}}>1.0x</span>
+                    <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:"8px",color:T.muted}}>
+                      <IVolume size={16}/>
+                      <div style={{height:"4px",width:"100px",background:T.border,borderRadius:"9999px"}}>
+                        <div style={{height:"100%",width:"75%",background:T.accent,borderRadius:"9999px"}}/>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <button onClick={()=>onStartQuiz(item)}
+              style={{display:"flex",alignItems:"center",gap:"8px",background:T.accent,color:"white",fontWeight:600,padding:"12px 24px",borderRadius:"12px",border:"none",cursor:"pointer",fontSize:"14px",alignSelf:"flex-start",transition:"background 0.15s"}}
+              onMouseEnter={e=>e.currentTarget.style.background=T.accentHov} onMouseLeave={e=>e.currentTarget.style.background=T.accent}>
+              Take Assessment <IArrowR size={16}/>
+            </button>
+          </div>
+
+          <div style={{width:"272px",flexShrink:0,display:"flex",flexDirection:"column",gap:"14px"}}>
+            <div style={{borderRadius:"16px",border:`1px solid ${T.border}`,background:T.card,padding:"20px",display:"flex",flexDirection:"column",gap:"12px"}}>
+              <p style={{fontSize:"13px",fontWeight:700,margin:0,color:T.text}}>Course Details</p>
+              {[{label:"Provider",value:item.provider},{label:"Duration",value:`${item.duration} min`},{label:"Total CPD Points",value:`${item.cpdPoints} pts`},{label:"Format",value:tc.label},{label:"Category",value:primaryCategory}].map(row => (
+                <div key={row.label} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"16px",fontSize:"13px"}}>
+                  <span style={{color:T.muted,flexShrink:0}}>{row.label}</span>
+                  <span style={{fontWeight:600,textAlign:"right",color:T.text}}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{borderRadius:"16px",border:`1px solid ${T.border}`,background:T.card,padding:"20px",display:"flex",flexDirection:"column",gap:"12px"}}>
+              <p style={{fontSize:"13px",fontWeight:700,margin:0,color:T.text}}>Points Allocation</p>
+              {item.categories?.map(cat => (
+                <div key={cat.name} style={{display:"flex",justifyContent:"space-between",fontSize:"13px"}}>
+                  <span style={{color:T.muted}}>{cat.name}</span>
+                  <span style={{fontWeight:600,color:T.accent}}>{cat.pts.toFixed(2)}</span>
+                </div>
+              ))}
+              <div style={{paddingTop:"10px",borderTop:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",fontSize:"13px"}}>
+                <span style={{fontWeight:700,color:T.text}}>Total</span>
+                <span style={{fontWeight:700,color:T.accent}}>{item.cpdPoints.toFixed(2)} pts</span>
+              </div>
+            </div>
+            <div style={{borderRadius:"16px",border:`1px solid ${T.border}`,background:T.card,padding:"20px",display:"flex",flexDirection:"column",gap:"12px"}}>
+              <p style={{fontSize:"13px",fontWeight:700,margin:0,color:T.text}}>Earn {item.cpdPoints} CPD Points</p>
+              <button onClick={()=>onStartQuiz(item)}
+                style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",borderRadius:"10px",border:`1px solid ${T.border}`,fontSize:"13px",background:"none",cursor:"pointer",transition:"background 0.15s",color:T.text}}
+                onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.03)"} onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                <span style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  Quiz
+                </span>
+                <span style={{height:"18px",width:"18px",borderRadius:"9999px",border:`2px solid ${T.border}`,display:"inline-block"}}/>
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Quiz ─────────────────────────────────────────────────────────────────
+    function Quiz({ item, onBack, onComplete }) {
+      const questions = quizQuestions[item?.id ?? ""] ?? [];
+      const [current, setCurrent] = useState(0);
+      const [selected, setSelected] = useState(null);
+      const [answers, setAnswers] = useState([]);
+      const [showExp, setShowExp] = useState(false);
+
+      if (!item || questions.length===0) {
+        return (
+          <div style={{display:"flex",flexDirection:"column",gap:"16px"}}>
+            <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:"4px",background:"none",border:"none",cursor:"pointer",fontSize:"14px",color:T.muted,padding:0}}>
+              <IChevronL size={16}/> Back
+            </button>
+            <p style={{color:T.muted}}>No questions available for this activity.</p>
+          </div>
+        );
+      }
+
+      const q = questions[current];
+      const progress = Math.round((current / questions.length) * 100);
+      const isLast = current === questions.length - 1;
+
+      function handleSelect(idx) {
+        if (selected !== null) return;
+        setSelected(idx); setShowExp(true);
+      }
+
+      function handleNext() {
+        const newAnswers = [...answers, {questionId:q.id, selected, correct:q.correct}];
+        setAnswers(newAnswers);
+        if (isLast) {
+          const score = newAnswers.filter(a=>a.selected===a.correct).length;
+          onComplete({answers:newAnswers, score, total:questions.length, passed:score/questions.length>=0.7});
+        } else {
+          setCurrent(c=>c+1); setSelected(null); setShowExp(false);
+        }
+      }
+
+      return (
+        <div style={{display:"flex",flexDirection:"column",gap:"24px",maxWidth:"700px"}}>
+          <button onClick={onBack} style={{display:"flex",alignItems:"center",gap:"4px",background:"none",border:"none",cursor:"pointer",fontSize:"14px",color:T.muted,padding:0,alignSelf:"flex-start"}}>
+            <IChevronL size={16}/> Back to Activity
+          </button>
+          <div>
+            <h1 style={{fontSize:"20px",fontWeight:"bold",margin:"0 0 4px",color:T.text}}>{item.title}</h1>
+            <p style={{fontSize:"14px",color:T.muted,margin:0}}>Assessment · Question {current+1} of {questions.length}</p>
+          </div>
+          <div style={{height:"5px",background:T.border,borderRadius:"9999px",overflow:"hidden"}}>
+            <div style={{height:"100%",background:T.accent,borderRadius:"9999px",width:`${progress}%`,transition:"width 0.3s"}}/>
+          </div>
+          <div style={{borderRadius:"16px",border:`1px solid ${T.border}`,background:T.card,overflow:"hidden"}}>
+            <div style={{padding:"20px 24px",borderBottom:`1px solid ${T.border}`}}>
+              <p style={{fontSize:"15px",fontWeight:600,lineHeight:1.4,margin:0,color:T.text}}>{q.question}</p>
+            </div>
+            <div style={{padding:"20px 24px",display:"flex",flexDirection:"column",gap:"8px"}}>
+              {q.options.map((opt, idx) => {
+                const isSelected = selected===idx;
+                const isCorrect = idx===q.correct;
+                const showResult = selected!==null;
+                let bg="transparent", border=`1px solid ${T.border}`, color=T.text, opacity=1;
+                if (showResult) {
+                  if (isCorrect)       { bg=T.greenBg; border=`1px solid rgba(34,197,94,0.4)`; color=T.green; }
+                  else if (isSelected) { bg=T.redBg; border=`1px solid rgba(240,70,97,0.4)`; color=T.red; }
+                  else                 { opacity=0.4; }
+                }
+                return (
+                  <button key={idx} onClick={()=>handleSelect(idx)} disabled={selected!==null}
+                    style={{width:"100%",textAlign:"left",borderRadius:"10px",border,padding:"12px 16px",fontSize:"14px",background:bg,color,opacity,cursor:selected!==null?"default":"pointer",transition:"all 0.15s"}}>
+                    <span style={{fontWeight:500,marginRight:"8px"}}>{String.fromCharCode(65+idx)}.</span>{opt}
+                  </button>
+                );
+              })}
+              {showExp && q.explanation && (
+                <div style={{marginTop:"6px",borderRadius:"10px",background:T.accentBg,border:`1px solid rgba(123,104,238,0.3)`,padding:"12px 16px",fontSize:"14px",color:T.accent}}>
+                  <strong>Explanation:</strong> {q.explanation}
+                </div>
+              )}
+              {selected!==null && (
+                <button onClick={handleNext}
+                  style={{width:"100%",marginTop:"8px",background:T.accent,color:"white",fontWeight:600,padding:"12px",borderRadius:"10px",border:"none",cursor:"pointer",fontSize:"14px",transition:"background 0.15s"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=T.accentHov} onMouseLeave={e=>e.currentTarget.style.background=T.accent}>
+                  {isLast ? "Finish Assessment" : "Next Question"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Results ──────────────────────────────────────────────────────────────
+    function Results({ result, item, onBack, onGoLibrary }) {
+      if (!result) return null;
+      const pct = Math.round((result.score / result.total) * 100);
+      return (
+        <div style={{maxWidth:"440px",margin:"0 auto",paddingTop:"32px"}}>
+          <div style={{borderRadius:"20px",border:`1px solid ${T.border}`,background:T.card,padding:"36px 28px",display:"flex",flexDirection:"column",alignItems:"center",gap:"20px",textAlign:"center"}}>
+            <div style={{height:"76px",width:"76px",borderRadius:"9999px",display:"flex",alignItems:"center",justifyContent:"center",background:result.passed?T.greenBg:T.redBg}}>
+              {result.passed ? <ICheck size={32} style={{color:T.green}}/> : <IXmark size={32} style={{color:T.red}}/>}
+            </div>
+            <div>
+              <h1 style={{fontSize:"22px",fontWeight:"bold",margin:"0 0 4px",color:T.text}}>{result.passed ? "Assessment Passed!" : "Not Quite There"}</h1>
+              <p style={{fontSize:"13px",color:T.muted,margin:0}}>{item?.title}</p>
+            </div>
+            <div style={{fontSize:"44px",fontWeight:"bold",color:T.text}}>{pct}%</div>
+            <p style={{fontSize:"14px",color:T.muted,margin:0}}>{result.score} of {result.total} questions correct</p>
+            {result.passed && item?.cpdPoints && (
+              <div style={{display:"flex",alignItems:"center",gap:"8px",borderRadius:"9999px",background:T.greenBg,border:`1px solid rgba(34,197,94,0.3)`,padding:"8px 18px",fontSize:"14px",color:T.green,fontWeight:500}}>
+                <IAward size={14}/> {item.cpdPoints} CPD points earned
+              </div>
+            )}
+            {!result.passed && (
+              <p style={{fontSize:"14px",color:T.muted,margin:0}}>A score of 70% or higher is required to pass. Review the material and try again.</p>
+            )}
+            <div style={{display:"flex",gap:"12px",width:"100%",paddingTop:"8px"}}>
+              {!result.passed && (
+                <button onClick={onBack} style={{flex:1,background:"none",border:`1px solid ${T.border}`,color:T.text,fontWeight:600,padding:"12px",borderRadius:"10px",cursor:"pointer",fontSize:"14px",transition:"border-color 0.15s"}}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor=T.borderHov} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>Retry</button>
+              )}
+              <button onClick={onGoLibrary} style={{flex:1,background:T.accent,color:"white",fontWeight:600,padding:"12px",borderRadius:"10px",border:"none",cursor:"pointer",fontSize:"14px",transition:"background 0.15s"}}
+                onMouseEnter={e=>e.currentTarget.style.background=T.accentHov} onMouseLeave={e=>e.currentTarget.style.background=T.accent}>
+                {result.passed ? "Back to Library" : "Back to Activity"}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Profile ──────────────────────────────────────────────────────────────
+    function Profile({ user, onUpdate }) {
+      const [name, setName] = useState(user?.name ?? "");
+      const [email, setEmail] = useState(user?.email ?? "");
+      const [role, setRole] = useState(user?.role ?? "");
+      const [saved, setSaved] = useState(false);
+
+      function handleSave(e) {
+        e.preventDefault();
+        onUpdate({...user, name, email, role});
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
+
+      const inputStyle = {borderRadius:"10px",border:`1px solid ${T.border}`,background:T.cardAlt,padding:"10px 14px",fontSize:"14px",outline:"none",width:"100%",color:T.text,transition:"border-color 0.15s"};
+
+      return (
+        <div style={{maxWidth:"580px",display:"flex",flexDirection:"column",gap:"24px"}}>
+          <div>
+            <h1 style={{fontSize:"24px",fontWeight:"bold",margin:"0 0 4px",color:T.text}}>Account Settings</h1>
+            <p style={{fontSize:"14px",color:T.muted,margin:0}}>Manage your profile and account preferences.</p>
+          </div>
+          <div style={{borderRadius:"16px",border:`1px solid ${T.border}`,background:T.card,padding:"24px"}}>
+            <form onSubmit={handleSave} style={{display:"flex",flexDirection:"column",gap:"20px"}}>
+              {[{label:"Full Name",value:name,onChange:setName,type:"text"},{label:"Email",value:email,onChange:setEmail,type:"email"},{label:"Role",value:role,onChange:setRole,type:"text"}].map(field => (
+                <div key={field.label} style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+                  <label style={{fontSize:"12px",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",color:T.muted}}>{field.label}</label>
+                  <input type={field.type} value={field.value} onChange={e=>field.onChange(e.target.value)} style={inputStyle}
+                    onFocus={e=>e.currentTarget.style.borderColor=T.accent} onBlur={e=>e.currentTarget.style.borderColor=T.border}/>
+                </div>
+              ))}
+              <button type="submit" style={{background:saved?T.green:T.accent,color:"white",fontWeight:600,padding:"10px 24px",borderRadius:"10px",border:"none",cursor:"pointer",fontSize:"14px",alignSelf:"flex-start",transition:"background 0.3s"}}>
+                {saved ? "Saved!" : "Save Changes"}
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── App ──────────────────────────────────────────────────────────────────
+    function App() {
+      const [user, setUser] = useState(null);
+      const [page, setPage] = useState("dashboard");
+      const [selectedContent, setSelectedContent] = useState(null);
+      const [quizResult, setQuizResult] = useState(null);
+
+      if (!user) return <Login onLogin={u=>setUser(u)} />;
+
+      function navigate(to) { setPage(to); setSelectedContent(null); setQuizResult(null); }
+      function handleSelectContent(item) { setSelectedContent(item); setQuizResult(null); setPage("content"); }
+      function handleStartQuiz(item) { setPage("quiz"); }
+      function handleQuizComplete(result) { setQuizResult(result); setPage("results"); }
+
+      function renderPage() {
+        switch (page) {
+          case "dashboard": return <Dashboard onSelectContent={handleSelectContent} />;
+          case "library":   return <Library onSelectContent={handleSelectContent} />;
+          case "content":   return <ContentDetail item={selectedContent} onBack={()=>navigate("library")} onStartQuiz={handleStartQuiz} />;
+          case "quiz":      return <Quiz item={selectedContent} onBack={()=>setPage("content")} onComplete={handleQuizComplete} />;
+          case "results":   return <Results result={quizResult} item={selectedContent} onBack={()=>setPage("quiz")} onGoLibrary={()=>navigate("library")} />;
+          case "profile":   return <Profile user={user} onUpdate={setUser} />;
+          default:          return <Dashboard onSelectContent={handleSelectContent} />;
+        }
+      }
+
+      return (
+        <div style={{minHeight:"100vh",background:T.bg}}>
+          <Header currentPage={page} onNavigate={navigate} user={user} onLogout={()=>setUser(null)} />
+          <div style={{paddingTop:"56px"}}>
+            <div style={{margin:"0 auto",maxWidth:"1255px",padding:"24px 20px",display:"flex",alignItems:"flex-start",gap:"20px"}}>
+              <Sidebar currentPage={page} onNavigate={navigate} user={user} />
+              <main style={{flex:1,minWidth:0}}>
+                {renderPage()}
+              </main>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
